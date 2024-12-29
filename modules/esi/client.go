@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/guarzo/eveapi/common/model"
 	"io"
 	"net/http"
 	"net/url"
@@ -260,5 +261,5 @@ func canRefresh(token *oauth2.Token, auth AuthClient) bool {
 
 // unmarshalJSON helper
 func unmarshalJSON(data []byte, out interface{}) error {
-	return common.JSONUnmarshal(data, out)
+	return model.JSONUnmarshal(data, out)
 }

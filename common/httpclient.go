@@ -146,15 +146,3 @@ func (h *httpClient) SetRandAndSleepForTest(sleep func(d time.Duration), seed in
 	h.sleepFunc = sleep
 	rand.Seed(seed)
 }
-
-// Utility for logging HTTP errors
-func LogHttpErrorIfNotNotFound(logger Logger, message string, err error) {
-	var httpErr *HTTPError
-	if errors.As(err, &httpErr) {
-		if httpErr.StatusCode != http.StatusNotFound {
-			logger.Errorf("%s: %v", message, err)
-		}
-	} else {
-		logger.Errorf("%s: %v", message, err)
-	}
-}

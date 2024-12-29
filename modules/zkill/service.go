@@ -1,9 +1,8 @@
 package zkill
 
 import (
-    "context"
-    "github.com/guarzo/eveapi/common"
-    "github.com/guarzo/eveapi/common/model"
+	"context"
+	"github.com/guarzo/eveapi/common/model"
 )
 
 // ZKillService is a higher-level interface that uses ZKillClient to fetch multiple pages,
@@ -18,15 +17,12 @@ type ZKillService interface {
 // zKillService is the concrete struct implementing ZKillService.
 type zKillService struct {
 	ZKillClient
-	Logger common.Logger
-	// Optionally an EsiService if you want to integrate with ESI after fetching zkill data
 }
 
 // NewZKillService constructs a zKillService using the given client & logger.
-func NewZKillService(client ZKillClient, logger common.Logger) ZKillService {
+func NewZKillService(client ZKillClient) ZKillService {
 	return &zKillService{
 		ZKillClient: client,
-		Logger:      logger,
 	}
 }
 
@@ -41,26 +37,21 @@ func (svc *zKillService) GetKillMailDataForMonth(ctx context.Context, params *mo
 		"character":   params.Characters,
 	}
 
-	svc.Logger.Infof("Fetching zKill data for %04d-%02d", year, month)
-
 	// example: we can fetch kills & losses up to some page limit
-	const maxPages = 10
+	const maxPages = 100
 	for etype, ids := range entityGroups {
 		for _, id := range ids {
 			// 1) Kills
 			for page := 1; page <= maxPages; page++ {
 				kills, err := svc.ZKillClient.GetKillsPageData(ctx, etype, id, page, year, month)
 				if err != nil {
-					svc.Logger.Errorf("Error fetching kills for %s %d page %d: %v", etype, id, page, err)
 					break
 				}
 				if len(kills) == 0 {
-					svc.Logger.Debugf("No more kills for %s %d after page %d", etype, id, page)
 					break
 				}
 				updated, err := svc.processKillMails(ctx, kills, killMailIDs, aggregated)
 				if err != nil {
-					svc.Logger.Errorf("Error processing kills for %s %d: %v", etype, id, err)
 					break
 				}
 				aggregated = updated
@@ -70,16 +61,13 @@ func (svc *zKillService) GetKillMailDataForMonth(ctx context.Context, params *mo
 			for page := 1; page <= maxPages; page++ {
 				losses, err := svc.ZKillClient.GetLossPageData(ctx, etype, id, page, year, month)
 				if err != nil {
-					svc.Logger.Errorf("Error fetching losses for %s %d page %d: %v", etype, id, page, err)
 					break
 				}
 				if len(losses) == 0 {
-					svc.Logger.Debugf("No more losses for %s %d after page %d", etype, id, page)
 					break
 				}
 				updated, err := svc.processKillMails(ctx, losses, killMailIDs, aggregated)
 				if err != nil {
-					svc.Logger.Errorf("Error processing losses for %s %d: %v", etype, id, err)
 					break
 				}
 				aggregated = updated
@@ -87,7 +75,6 @@ func (svc *zKillService) GetKillMailDataForMonth(ctx context.Context, params *mo
 		}
 	}
 
-	svc.Logger.Infof("Completed month data for %04d-%02d with total %d killmails", year, month, len(aggregated))
 	return aggregated, nil
 }
 
@@ -100,7 +87,6 @@ func (svc *zKillService) processKillMails(ctx context.Context, mails []model.Zki
 		}
 		updated, err := svc.AddEsiKillMail(ctx, m, aggregated)
 		if err != nil {
-			svc.Logger.Errorf("Error adding ESI killmail %d: %v", m.KillMailID, err)
 			continue
 		}
 		aggregated = updated

@@ -3,13 +3,11 @@ package esi
 import (
 	"context"
 	"fmt"
-	"net/http"
-	"strings"
-	"sync"
-
 	"github.com/guarzo/eveapi/common"
 	"github.com/guarzo/eveapi/common/model"
 	"golang.org/x/oauth2"
+	"net/http"
+	"strings"
 )
 
 // EsiService is a higher-level interface for retrieving or manipulating EVE data.
@@ -25,22 +23,19 @@ type EsiService interface {
 	GetCloneLocations(ctx context.Context, characterID int64, token *oauth2.Token) (int64, []int64, error)
 	GetStructure(ctx context.Context, structureID int64, token *oauth2.Token) (*model.Structure, error)
 	GetStation(ctx context.Context, stationID int64) (*model.Station, error)
-	// etc...
 }
 
 // esiService is the concrete implementation that uses EsiClient.
+// Implementation
 type esiService struct {
-	logger    common.Logger
 	esiClient EsiClient
-
-	// if you have to store something like "failed characters" or local caches:
-	mu sync.Mutex
+	cache     common.CacheRepository
+	auth      AuthClient
 }
 
 // NewEsiService constructs an EsiService.
-func NewEsiService(logger common.Logger, client EsiClient) EsiService {
+func NewEsiService(client EsiClient) EsiService {
 	return &esiService{
-		logger:    logger,
 		esiClient: client,
 	}
 }
@@ -59,7 +54,7 @@ func (s *esiService) GetUserInfo(ctx context.Context, token *oauth2.Token) (*mod
 	}
 
 	var user model.User
-	if err := unmarshalJSON(data, &user); err != nil {
+	if err = unmarshalJSON(data, &user); err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -74,7 +69,6 @@ func (s *esiService) GetCharacterInfo(ctx context.Context, characterID int) (*mo
 		// check if 404
 		var httpErr *common.HTTPError
 		if isHttpError(err, &httpErr) && httpErr.StatusCode == http.StatusNotFound {
-			s.logger.Warnf("Character %d not found", characterID)
 			return nil, err
 		}
 		return nil, err

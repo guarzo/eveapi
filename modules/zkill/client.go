@@ -1,14 +1,14 @@
 package zkill
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "net/http"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
 
-    "github.com/guarzo/eveapi/common"
-    "github.com/guarzo/eveapi/common/model"
+	"github.com/guarzo/eveapi/common"
+	"github.com/guarzo/eveapi/common/model"
 )
 
 // ZKillClient is a lower-level interface for fetching from zKillboard’s API.
@@ -24,16 +24,14 @@ type zKillClient struct {
 	BaseURL string
 	Client  common.HttpClient
 	Cache   common.CacheRepository
-	Logger  common.Logger
 }
 
 // NewZkillClient constructs a zKillClient. The baseURL is typically "https://zkillboard.com".
-func NewZkillClient(baseURL string, client common.HttpClient, cache common.CacheRepository, logger common.Logger) ZKillClient {
+func NewZkillClient(baseURL string, client common.HttpClient, cache common.CacheRepository) ZKillClient {
 	return &zKillClient{
 		BaseURL: baseURL,
 		Client:  client,
 		Cache:   cache,
-		Logger:  logger,
 	}
 }
 
@@ -41,7 +39,6 @@ const zkillCacheExpiration = 770 * time.Hour // Example expiration (~1 month)
 
 // RemoveCacheEntry forcibly removes a specific cached entry.
 func (zk *zKillClient) RemoveCacheEntry(cacheKey string) {
-	zk.Logger.Debugf("Removing zkill cache entry: %s", cacheKey)
 	zk.Cache.Delete(cacheKey)
 }
 
@@ -75,16 +72,13 @@ func (zk *zKillClient) fetchPageData(ctx context.Context, apiType, entityType st
 	if cachedData, found := zk.Cache.Get(cacheKey); found {
 		var kills []model.ZkillMail
 		if err := json.Unmarshal(cachedData, &kills); err == nil {
-			zk.Logger.Debugf("Cache hit for key %s", cacheKey)
 			return kills, nil
 		}
-		zk.Logger.Warnf("Failed to unmarshal cached data for key %s. Will refetch.", cacheKey)
 	}
 
 	// We either had no cache or invalid data. Make an HTTP GET request.
 	kills, err := zk.doGetKillMails(ctx, requestURL)
 	if err != nil {
-		zk.Logger.Errorf("Error fetching from zKill: %v", err)
 		return nil, err
 	}
 
@@ -98,8 +92,6 @@ func (zk *zKillClient) fetchPageData(ctx context.Context, apiType, entityType st
 	bytes, err := json.Marshal(kills)
 	if err == nil {
 		zk.Cache.Set(cacheKey, bytes, exp)
-	} else {
-		zk.Logger.Errorf("Failed to cache data for key %s: %v", cacheKey, err)
 	}
 
 	return kills, nil
