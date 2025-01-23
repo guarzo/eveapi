@@ -177,6 +177,47 @@ func ConvertToFlattened(esi EsiKillMail, zkill ZkillMail) FlattenedKillMail {
 	}
 }
 
+type ZkillMailFeedResponse struct {
+	KillmailID    int64      `json:"killmail_id"`
+	SolarSystemID int        `json:"solar_system_id"`
+	Victim        Victim     `json:"victim"`
+	Attackers     []Attacker `json:"attackers"`
+	ZKB           ZKB        `json:"zkb"`
+}
+
+type Corporation struct {
+	AllianceID    *int32  `json:"alliance_id,omitempty"`     // CorporationID of the alliance, if any
+	CEOId         int32   `json:"ceo_id"`                    // CEO CorporationID (required)
+	CreatorID     int32   `json:"creator_id"`                // Creator CorporationID (required)
+	DateFounded   *string `json:"date_founded,omitempty"`    // Date the corporation was founded
+	Description   *string `json:"description,omitempty"`     // CorporationID description
+	FactionID     *int32  `json:"faction_id,omitempty"`      // Faction CorporationID, if any
+	HomeStationID *int32  `json:"home_station_id,omitempty"` // Home station CorporationID, if any
+	MemberCount   int32   `json:"member_count"`              // Number of members (required)
+	Name          string  `json:"name"`                      // Full name of the corporation (required)
+	Shares        *int64  `json:"shares,omitempty"`          // Number of shares, if any
+	TaxRate       float64 `json:"tax_rate"`                  // Tax rate (required, float with max 1.0 and min 0.0)
+	Ticker        string  `json:"ticker"`                    // Short name of the corporation (required)
+	URL           *string `json:"url,omitempty"`             // CorporationID URL, if any
+	WarEligible   *bool   `json:"war_eligible,omitempty"`    // War eligibility, if any
+}
+
+type Alliance struct {
+	CreatorCorporationID  int       `json:"creator_corporation_id"`
+	CreatorID             int       `json:"creator_id"`
+	DateFounded           time.Time `json:"date_founded"`
+	ExecutorCorporationID int       `json:"executor_corporation_id"`
+	Name                  string    `json:"name"`
+	Ticker                string    `json:"ticker"`
+}
+
+type CharacterPortrait struct {
+	Px128x128 string `json:"px128x128"`
+	Px256x256 string `json:"px256x256"`
+	Px512x512 string `json:"px512x512"`
+	Px64x64   string `json:"px64x64"`
+}
+
 // ----------------------------------------------------------------------
 // ZKill-Specific Data Structures
 // ----------------------------------------------------------------------
