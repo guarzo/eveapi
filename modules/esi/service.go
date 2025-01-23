@@ -200,7 +200,7 @@ func (s *esiService) GetCharacterPortrait(characterID int64) (string, error) {
 	ctx := context.Background()
 	endpoint := fmt.Sprintf("characters/%d/portrait/", characterID)
 
-	var portrait model.CharacterPortrait
+	var portrait model.EsiCharacterPortrait
 	err := s.esiClient.GetJSON(ctx, endpoint, &portrait, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode response body: %v", err)

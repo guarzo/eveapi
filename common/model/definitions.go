@@ -14,7 +14,7 @@ func JSONUnmarshal(data []byte, out interface{}) error {
 }
 
 // ----------------------------------------------------------------------
-// ESI-Specific Data Structures (originally from your first big snippet)
+// ESI-Specific Data Structures
 // ----------------------------------------------------------------------
 
 // EsiCharacter is an EVE Online character as returned by ESI.
@@ -55,12 +55,12 @@ type EsiCorporation struct {
 	URL           string    `json:"url"`
 }
 
-// FailedCharacters tracks CharacterIDs that failed (e.g. 404) so we can skip them.
+// FailedCharacters tracks CharacterIDs that failed (404, etc.).
 type FailedCharacters struct {
 	CharacterIDs map[int]bool `json:"character_ids"`
 }
 
-// CharacterResponse is an ESI response shape for a single character (lightweight).
+// CharacterResponse is an ESI response shape for a single character.
 type CharacterResponse struct {
 	AllianceID     int32     `json:"alliance_id,omitempty"`
 	Birthday       time.Time `json:"birthday"`
@@ -75,7 +75,7 @@ type CharacterResponse struct {
 	Title          string    `json:"title,omitempty"`
 }
 
-// EsiCorporationInfo is another shape you had for corporations
+// EsiCorporationInfo is another shape you had for corporations.
 type EsiCorporationInfo struct {
 	AllianceID    *int32  `json:"alliance_id,omitempty"`
 	CEOId         int32   `json:"ceo_id"`
@@ -101,6 +101,10 @@ type EsiCharacterPortrait struct {
 	Px64x64   string `json:"px64x64"`
 }
 
+// ----------------------------------------------------------------------
+// EsiKillMail + typed VictimItem
+// ----------------------------------------------------------------------
+
 // EsiKillMail is an ESI structure for killmail details.
 type EsiKillMail struct {
 	KillMailID    int        `json:"killmail_id"`
@@ -123,11 +127,13 @@ type Attacker struct {
 }
 
 // Victim is an ESI shape for a killmail victim.
+// Items is now typed as []VictimItem (instead of []interface{}).
 type Victim struct {
-	CharacterID   int           `json:"character_id"`
-	CorporationID int           `json:"corporation_id"`
-	DamageTaken   int           `json:"damage_taken"`
-	Items         []interface{} `json:"items"`
+	CharacterID   int          `json:"character_id"`
+	CorporationID int          `json:"corporation_id"`
+	AllianceID    int          `json:"alliance_id,omitempty"`
+	DamageTaken   int          `json:"damage_taken"`
+	Items         []VictimItem `json:"items"` // typed sub-items
 	Position      struct {
 		X float64 `json:"x"`
 		Y float64 `json:"y"`
@@ -136,13 +142,26 @@ type Victim struct {
 	ShipTypeID int `json:"ship_type_id"`
 }
 
-// FlattenedKillMail merges ESI killmail + Zkill data into one struct.
+// VictimItem is typed so we can do recursion.
+type VictimItem struct {
+	Flag              int          `json:"flag"`
+	ItemTypeID        int          `json:"item_type_id"`
+	QuantityDestroyed int64        `json:"quantity_destroyed,omitempty"`
+	QuantityDropped   int64        `json:"quantity_dropped,omitempty"`
+	Singleton         int          `json:"singleton,omitempty"`
+	Items             []VictimItem `json:"items,omitempty"` // Recursively nested items
+}
+
+// ----------------------------------------------------------------------
+// FlattenedKillMail merges ESI killmail + Zkill data
+// ----------------------------------------------------------------------
 type FlattenedKillMail struct {
 	KillMailID    int64     `json:"killmail_id"`
 	KillMailTime  time.Time `json:"killmail_time"`
 	SolarSystemID int       `json:"solar_system_id"`
 	Victim        Victim    `json:"victim"`
 	Attackers     []Attacker
+
 	// zKill extra fields:
 	LocationID     int64   `json:"locationID"`
 	Hash           string  `json:"hash"`
@@ -177,6 +196,7 @@ func ConvertToFlattened(esi EsiKillMail, zkill ZkillMail) FlattenedKillMail {
 	}
 }
 
+// ZkillMailFeedResponse is for zKill’s streaming feed
 type ZkillMailFeedResponse struct {
 	KillmailID    int64      `json:"killmail_id"`
 	SolarSystemID int        `json:"solar_system_id"`
@@ -185,50 +205,14 @@ type ZkillMailFeedResponse struct {
 	ZKB           ZKB        `json:"zkb"`
 }
 
-type Corporation struct {
-	AllianceID    *int32  `json:"alliance_id,omitempty"`     // CorporationID of the alliance, if any
-	CEOId         int32   `json:"ceo_id"`                    // CEO CorporationID (required)
-	CreatorID     int32   `json:"creator_id"`                // Creator CorporationID (required)
-	DateFounded   *string `json:"date_founded,omitempty"`    // Date the corporation was founded
-	Description   *string `json:"description,omitempty"`     // CorporationID description
-	FactionID     *int32  `json:"faction_id,omitempty"`      // Faction CorporationID, if any
-	HomeStationID *int32  `json:"home_station_id,omitempty"` // Home station CorporationID, if any
-	MemberCount   int32   `json:"member_count"`              // Number of members (required)
-	Name          string  `json:"name"`                      // Full name of the corporation (required)
-	Shares        *int64  `json:"shares,omitempty"`          // Number of shares, if any
-	TaxRate       float64 `json:"tax_rate"`                  // Tax rate (required, float with max 1.0 and min 0.0)
-	Ticker        string  `json:"ticker"`                    // Short name of the corporation (required)
-	URL           *string `json:"url,omitempty"`             // CorporationID URL, if any
-	WarEligible   *bool   `json:"war_eligible,omitempty"`    // War eligibility, if any
-}
-
-type Alliance struct {
-	CreatorCorporationID  int       `json:"creator_corporation_id"`
-	CreatorID             int       `json:"creator_id"`
-	DateFounded           time.Time `json:"date_founded"`
-	ExecutorCorporationID int       `json:"executor_corporation_id"`
-	Name                  string    `json:"name"`
-	Ticker                string    `json:"ticker"`
-}
-
-type CharacterPortrait struct {
-	Px128x128 string `json:"px128x128"`
-	Px256x256 string `json:"px256x256"`
-	Px512x512 string `json:"px512x512"`
-	Px64x64   string `json:"px64x64"`
-}
-
 // ----------------------------------------------------------------------
-// ZKill-Specific Data Structures
+// ZKill-Specific data
 // ----------------------------------------------------------------------
-
-// ZkillMail is the structure from zKillboard’s API (partial).
 type ZkillMail struct {
 	KillMailID int64 `json:"killmail_id"`
 	ZKB        ZKB   `json:"zkb"`
 }
 
-// ZKB holds zKill’s additional info about values, hash, etc.
 type ZKB struct {
 	LocationID     int64   `json:"locationID"`
 	Hash           string  `json:"hash"`
@@ -243,17 +227,45 @@ type ZKB struct {
 }
 
 // ----------------------------------------------------------------------
+// Corporation, Alliance, Character, etc.
+// ----------------------------------------------------------------------
+type Corporation struct {
+	AllianceID    *int32  `json:"alliance_id,omitempty"`
+	CEOId         int32   `json:"ceo_id"`
+	CreatorID     int32   `json:"creator_id"`
+	DateFounded   *string `json:"date_founded,omitempty"`
+	Description   *string `json:"description,omitempty"`
+	FactionID     *int32  `json:"faction_id,omitempty"`
+	HomeStationID *int32  `json:"home_station_id,omitempty"`
+	MemberCount   int32   `json:"member_count"`
+	Name          string  `json:"name"`
+	Shares        *int64  `json:"shares,omitempty"`
+	TaxRate       float64 `json:"tax_rate"`
+	Ticker        string  `json:"ticker"`
+	URL           *string `json:"url,omitempty"`
+	WarEligible   *bool   `json:"war_eligible,omitempty"`
+}
+
+type Alliance struct {
+	CreatorCorporationID  int       `json:"creator_corporation_id"`
+	CreatorID             int       `json:"creator_id"`
+	DateFounded           time.Time `json:"date_founded"`
+	ExecutorCorporationID int       `json:"executor_corporation_id"`
+	Name                  string    `json:"name"`
+	Ticker                string    `json:"ticker"`
+}
+
+// ----------------------------------------------------------------------
 // Additional Data Structures for "Charts" or "Params"
 // ----------------------------------------------------------------------
 
-// ESIData is a structure that might hold loaded alliance/corp/character info in memory.
+// ESIData might store loaded alliance/corp/character info in memory.
 type ESIData struct {
 	AllianceInfos    map[int]EsiAlliance
 	CharacterInfos   map[int]EsiCharacter
 	CorporationInfos map[int]EsiCorporation
 }
 
-// Params for killmail retrieval or other usage.
 type Params struct {
 	Corporations []int
 	Alliances    []int
@@ -264,14 +276,12 @@ type Params struct {
 	NewIDs       *Ids
 }
 
-// Ids might store new alliance/character/corp IDs discovered?
 type Ids struct {
 	AllianceIDs    []int `json:"alliance_ids"`
 	CharacterIDs   []int `json:"character_ids"`
 	CorporationIDs []int `json:"corporation_ids"`
 }
 
-// FlattenedKillMail chart usage, etc.
 type ChartData struct {
 	KillMails []FlattenedKillMail
 	ESIData
@@ -279,7 +289,7 @@ type ChartData struct {
 	LookupFunc        func(int) string
 }
 
-// Chart represents a single chart definition with data prep logic.
+// Chart is a single chart definition with data prep logic, for front-end rendering.
 type Chart struct {
 	FieldPrefix string
 	PrepareFunc func(*ChartData) interface{}
@@ -287,13 +297,13 @@ type Chart struct {
 	Type        string // e.g. "bar", "line"
 }
 
-// TimeFrameData for a specific time frame in a UI
+// TimeFrameData for a specific timeframe in a UI
 type TimeFrameData struct {
 	Name   string       // e.g. "MTD", "YTD"
 	Charts []ChartEntry // Slice of charts
 }
 
-// ChartEntry is a single chart’s data
+// ChartEntry is one chart’s data
 type ChartEntry struct {
 	Name string      // e.g. "Damage by Character"
 	ID   string      // e.g. "damageChart_MTD"
@@ -309,14 +319,11 @@ type TemplateData struct {
 // ----------------------------------------------------------------------
 // Identity / Auth Structures
 // ----------------------------------------------------------------------
-
-// Identities can store multiple tokens keyed by character ID or name
 type Identities struct {
 	MainIdentity string                  `json:"main_identity"`
 	Tokens       map[string]oauth2.Token `json:"identities"`
 }
 
-// AuthState is an example structure for OAuth state param usage.
 type AuthState struct {
 	Mode      string `json:"mode"`
 	AppID     string `json:"app_id"`
@@ -340,11 +347,9 @@ func DecodeState(stateStr string) (AuthState, error) {
 }
 
 // ----------------------------------------------------------------------
-// Additional "config" / second snippet data structures
-// (Renamed to avoid collisions with the above EsiCharacter, etc.)
+// Additional "config" data or user definitions
 // ----------------------------------------------------------------------
 
-// ConfigCharacter is the user-based Character structure that wraps a User plus location info.
 type ConfigCharacter struct {
 	User
 	Location       int64   `json:"Location"`
@@ -355,13 +360,11 @@ type ConfigCharacter struct {
 	StashList []Stash `json:"StashList"`
 }
 
-// CharacterData is a direct pairing of an oauth2.Token with a ConfigCharacter.
 type CharacterData struct {
 	Token     oauth2.Token
 	Character ConfigCharacter
 }
 
-// CharacterRoles as used in the config snippet
 type CharacterRoles struct {
 	Roles        []string `json:"roles"`
 	RolesAtBase  []string `json:"roles_at_base"`
@@ -369,13 +372,11 @@ type CharacterRoles struct {
 	RolesAtOther []string `json:"roles_at_other"`
 }
 
-// CharacterLocation indicates which system/structure a character is in.
 type CharacterLocation struct {
 	SolarSystemID int64 `json:"solar_system_id"`
 	StructureID   int64 `json:"structure_id"`
 }
 
-// CloneLocation for clones/jump clones
 type CloneLocation struct {
 	HomeLocation struct {
 		LocationID   int64  `json:"location_id"`
@@ -389,14 +390,12 @@ type CloneLocation struct {
 	} `json:"jump_clones"`
 }
 
-// Station (public station data)
 type Station struct {
 	SystemID int64  `json:"system_id"`
 	ID       int64  `json:"station_id"`
 	Name     string `json:"station_name"`
 }
 
-// Structure (for POSes, Upwell structures, etc.)
 type Structure struct {
 	Name     string `json:"name"`
 	OwnerID  int64  `json:"owner_id"`
@@ -404,7 +403,6 @@ type Structure struct {
 	TypeID   int64  `json:"type_id"`
 }
 
-// Asset references items in a location (type ID, quantity, etc.)
 type Asset struct {
 	TypeID       int64  `json:"type_id"`
 	Quantity     int    `json:"quantity"`
@@ -413,14 +411,12 @@ type Asset struct {
 	LocationID   int64  `json:"location_id"`
 }
 
-// Item is a simpler name/qty structure
 type Item struct {
 	ID   int64  `json:"item_id"`
 	Name string `json:"item_name"`
 	Qty  int    `json:"item_qty"`
 }
 
-// LocationInventory groups items found at a single location
 type LocationInventory struct {
 	CharacterID int64          `json:"Id"`
 	LocFlag     string         `json:"LocFlag"`
@@ -429,16 +425,11 @@ type LocationInventory struct {
 	Items       map[string]int `json:"Items"`
 }
 
-// Stash is a collection of items in a specific system
 type Stash struct {
 	SystemId   int64  `json:"system_id"`
 	SystemName string `json:"system_name"`
 	Inventory  []Item `json:"inventory"`
 }
-
-// ----------------------------------------------------------------------
-// Additional Helpers
-// ----------------------------------------------------------------------
 
 // We can define an interface for anything that has a "GetName" if needed.
 type Namer interface {
